@@ -173,6 +173,8 @@ def create_app(test_config=None):
                 "totalQuestions": len(questions),
                 "currentCategory": cat.type
             })
+        else:
+            abort(422)
 
     """
     @TODO:
@@ -185,9 +187,12 @@ def create_app(test_config=None):
 
     @app.route("/categories/<int:category_id>/questions")
     def get_questions_by_category(category_id):
+        cat = Category.query.get(category_id)
+        if cat is None:
+            abort(404)
+        cat = cat.type
         questions = Question.query.filter_by(category=category_id).all()
         questions = [q.format() for q in questions]
-        cat = Category.query.get(category_id).type
 
         return jsonify({"questions": questions,
                         "totalQuestions": len(questions),
@@ -212,12 +217,11 @@ def create_app(test_config=None):
         category = body.get("quiz_category", None)
         questions = body.get("previous_questions", [])
 
-        if category is None:
-            quest = Question.query.all()
+        if category["id"]==0:
+            quest=Question.query.all()
         else:
             try:
-                category = Category.query.filter(Category.type.ilike(category)).one()
-                quest = Question.query.filter_by(category=category.id).all()
+                quest = Question.query.filter_by(category=category["id"]).all()
             except:
                 abort(404)
 
@@ -226,7 +230,9 @@ def create_app(test_config=None):
         quest = choice(quest)
 
         return jsonify({
-            "question": quest
+            "quiz_category": category,
+            "question": quest,
+            "previous_questions": questions
         })
 
     """
@@ -269,6 +275,16 @@ def create_app(test_config=None):
                      "error": 500,
                      "message": "Error: server error"}),
             500,
+        )
+
+
+    @app.errorhandler(405)
+    def method_error(error):
+        return (
+            jsonify({"success": False,
+                     "error": 405,
+                     "message": "Error: method unallowed"}),
+            405,
         )
 
     return app
